@@ -1,0 +1,63 @@
+# Implementation Plan - Dynamic Option Exit Prices, Expiry Session Tracking & Data Integrity Audit
+
+This plan addresses the two core issues reported:
+1. **Replacing the hardcoded `$100.00` option close price** during market square-off with live real-time Binance Option Mark Prices (or intrinsic value calculation if expired).
+2. **Adding explicit Binance Expiry Session Date tracking** (`expiry_session`) to `HedgeSession` database schema & dashboard UI tables so every trade and session clearly displays its target expiry date (e.g., `260821` / `21-AUG-2026`).
+3. **Auditing and eliminating any remaining mock/fallback data**, then clearing existing trade records for a clean, accurate start.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> - **Option Closing Price**: During square-off, option SELL orders will now execute using live real-time mark prices fetched directly from Binance Options API (`eapi.binance.com/eapi/v1/mark`). If a contract has expired at square-off time, its value will be determined by exact intrinsic formula `max(0, strike - futures_mark)` for PUT and `max(0, futures_mark - strike)` for CALL.
+> - **Trade History Reset**: To remove historical orders containing the hardcoded `$100.00` exit price, all Hedge trade records and paper wallet balances will be wiped clean for a fresh start.
+
+---
+
+## Proposed Changes
+
+### 1. Database Schema (`app/models/schema.py`)
+
+#### [MODIFY] [`schema.py`](file:///d:/desktop/Testing/Hedgesnstraddle/HnS_application_11aug/app/models/schema.py)
+- Add `expiry_session = Column(String(50), nullable=True)` to `HedgeSession` model to store the target Binance Expiry Date (e.g. `260821`).
+
+---
+
+### 2. Core Engine (`app/core/hedge_engine.py`)
+
+#### [MODIFY] [`hedge_engine.py`](file:///d:/desktop/Testing/Hedgesnstraddle/HnS_application_11aug/app/core/hedge_engine.py)
+- **`execute_slot_entry()`**:
+  - Pass `expiry_session=current_session_key` when instantiating `HedgeSession` so the active expiry date is permanently recorded in DB.
+- **`execute_squareoff()`**:
+  - Replace the hardcoded `pnl = (100.0 - pos.entry_price) * qty` and `price=100.0` logic.
+  - Call `get_btc_options_mark_prices()` to fetch the real-time mark price for `pos.symbol`.
+  - If the mark price is available from API, use `live_mark`.
+  - If mark price is 0.0 or contract expired, compute intrinsic valuation:
+    - For PUT: `max(0.0, strike - futures_mark)`
+    - For CALL: `max(0.0, futures_mark - strike)`
+  - Record the exact fetched/computed price on `HedgeTradeOrder(price=opt_exit_price)` and calculate precise realized PnL.
+
+---
+
+### 3. API & Dashboard UI (`app/api/dashboard_routes.py`, `app/static/index.html`, `app/static/js/app.js`)
+
+#### [MODIFY] [`dashboard_routes.py`](file:///d:/desktop/Testing/Hedgesnstraddle/HnS_application_11aug/app/api/dashboard_routes.py)
+- Include `expiry_session` field in the `/api/v1/dashboard/hedge/sessions` API response payload.
+
+#### [MODIFY] [`index.html`](file:///d:/desktop/Testing/Hedgesnstraddle/HnS_application_11aug/app/static/index.html)
+- Add **`Expiry Session`** column header to the **Hedge Trading Sessions** table.
+
+#### [MODIFY] [`app.js`](file:///d:/desktop/Testing/Hedgesnstraddle/HnS_application_11aug/app/static/js/app.js)
+- Bind the `expiry_session` column value (e.g. `260821 (21-Aug)`) when rendering Hedge session rows.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+- Run `.venv\Scripts\python.exe run_test_suite.py` to ensure all 11 system verification tests pass cleanly.
+
+### Manual Verification
+- Test square-off triggering to confirm Option SELL orders execute at real-time mark prices rather than `$100.00`.
+- Verify the Hedge Sessions table displays the exact Binance Expiry Session Date for every session.

@@ -1,0 +1,114 @@
+# Verification and test index
+
+Documentation verified on2026-09-24 against commit1e3482fdba0de2def83b031dd8c7efce4e0b7558.
+
+- All36 source files reconstructed from the Markdown appendix and verified by normalized SHA256.
+- Current originals also matched every raw-byte source manifest hash.
+- Every reconstructed Python file parsed successfully.
+- SQLite DDL executed in memory and matched26 tables and225 columns.
+- New documentation local links resolved.
+- Reconstructed application offline suite:85 tests,84 passed,1 optional skipped, exit0.
+- Reconstructed frontend node --check:exit0.
+- No live Binance audit or Linux state/configuration inspection performed during documentation.
+- Application code, database and running services unchanged by documentation generation.
+
+The optional skip concerns the MCP protocol dependency. Starlette emitted an httpx deprecation warning; no test failure resulted.
+
+## Exact included regression cases
+
+### test_futures_targets.py
+
+- `TimestampMigrationTests.test_additive_migration_preserves_history_and_is_repeatable`
+- `ReplayTests.test_cross_and_return_fills_at_locked_target_with_event_time`
+- `ReplayTests.test_restart_resumes_last_id_and_duplicate_processing_is_safe`
+- `ReplayTests.test_full_pages_same_timestamp_resume_without_skipping`
+- `ReplayTests.test_full_page_at_deadline_is_not_mistaken_for_complete_history`
+- `ReplayTests.test_paginates_all_pages_in_one_poll`
+- `ReplayTests.test_activation_boundary_is_not_backdated`
+- `ReplayTests.test_buy_target_and_exact_touch`
+- `ReplayTests.test_cancelled_order_never_fetches_or_fills`
+- `ReplayTests.test_limit_activated_after_cutoff_has_no_eligible_history`
+- `ReplayTests.test_late_published_trade_recovers_by_id_after_covered_timestamp`
+- `ReplayTests.test_errors_do_not_advance_cursor`
+- `ReplayTests.test_missing_id_is_not_silently_skipped`
+- `ReplayTests.test_identity_and_retention_fail_closed`
+- `ReplayTests.test_throttles_successful_polls_and_records_empty_interval`
+- `ReplayTests.test_deadline_excludes_later_crossing`
+- `HistoryClientTests.test_valid_price_history`
+- `HistoryClientTests.test_rejects_mismatch_invalid_prices_stale_and_unordered_data`
+- `HistoryClientTests.test_rate_limit_has_no_cached_price_fallback`
+- `HistoryClientTests.test_anchor_requires_id_and_valid_exchange_clock`
+
+### test_readonly_mcp.py
+
+- `ReadOnlyMCPTests.test_pagination_and_filter`
+- `ReadOnlyMCPTests.test_configuration_excludes_secrets_and_unknown_keys`
+- `ReadOnlyMCPTests.test_denies_writes_and_non_allowlisted_reads`
+- `ReadOnlyMCPTests.test_validation_and_missing_database`
+- `ReadOnlyMCPTests.test_stdio_protocol`
+
+### test_trade_recovery_boundaries.py
+
+- `RecoveryBoundaryAudit.test_delayed_first_trade_is_recovered_after_initial_empty_response`
+- `RecoveryBoundaryAudit.test_late_crossing_before_deadline_is_not_skipped`
+- `RecoveryBoundaryAudit.test_second_page_failure_does_not_advance_persisted_cursor`
+
+### test_trading_logic.py
+
+- `TradingLogicTests.test_straddle_pending_prices_are_locked`
+- `TradingLogicTests.test_reported_1740_crossing_has_exchange_fill_time_not_poll_time`
+- `TradingLogicTests.test_entry_and_target_in_same_batch_follow_id_order_in_same_millisecond`
+- `TradingLogicTests.test_oco_chooses_first_trade_not_sell_side_priority`
+- `TradingLogicTests.test_cutoff_waits_for_contiguous_later_trade_and_recovers_late_entry`
+- `TradingLogicTests.test_entry_cutoff_excludes_trade_exactly_at_deadline`
+- `TradingLogicTests.test_hedge_target_recovers_crossing_when_latest_mark_never_hits`
+- `TradingLogicTests.test_hedge_mark_crossing_without_trade_crossing_does_not_fill`
+- `TradingLogicTests.test_hedge_history_failure_then_recovery_does_not_double_credit`
+- `TradingLogicTests.test_straddle_recovers_crossing_and_credits_limit_not_mark`
+- `TradingLogicTests.test_straddle_long_target_and_manual_cancel`
+- `TradingLogicTests.test_straddle_long_target_exact_touch`
+- `TradingLogicTests.test_straddle_no_futures_no_fictitious_profit_and_repeat_safe`
+- `TradingLogicTests.test_straddle_close_uses_entry_qty_and_zero_option_mark`
+- `TradingLogicTests.test_straddle_restart_restores_orders_and_exit`
+- `TradingLogicTests.test_straddle_cutoff_prevents_late_futures_entry`
+- `TradingLogicTests.test_straddle_tp_and_ledger_tally`
+- `TradingLogicTests.test_straddle_manual_squareoff_during_entry_window`
+- `TradingLogicTests.test_straddle_disable_reenable`
+- `TradingLogicTests.test_disabled_straddle_refreshes_preview_without_trading`
+- `TradingLogicTests.test_hedge_preview_refreshes_under_every_entry_block`
+- `TradingLogicTests.test_hedge_failed_refresh_removes_old_preview_reason`
+- `TradingLogicTests.test_straddle_missing_pair_and_wrong_expiry_are_rejected`
+- `TradingLogicTests.test_hedge_independent_entry_windows_and_restart_lock`
+- `TradingLogicTests.test_hedge_first_tp_keeps_option_then_target_closes`
+- `TradingLogicTests.test_second_tp_reentry_survives_restart_and_is_cancelled_or_filled`
+- `TradingLogicTests.test_hedge_squareoff_repeat_and_role_attribution`
+- `TradingLogicTests.test_hedge_scheduled_close_cancels_unfilled_targets_and_reentry`
+- `TradingLogicTests.test_hedge_bearish_tp_and_sell_reentry`
+- `TradingLogicTests.test_queued_hedge_manual_close_survives_restart_and_disable`
+- `TradingLogicTests.test_hedge_pause_blocks_entry_but_allows_management`
+- `TradingLogicTests.test_preview_distinguishes_filtered_quotes_from_qualifying_contract`
+- `TradingLogicTests.test_legacy_global_spend_cap_does_not_block_ten_btc_entry`
+- `TradingLogicTests.test_trader2_is_opposite_even_with_same_configured_direction`
+- `TradingLogicTests.test_trader2_waits_when_only_same_direction_qualifies`
+- `TradingLogicTests.test_opposite_direction_survives_restart_and_first_close`
+- `TradingLogicTests.test_opposite_direction_allows_lower_second_strike`
+- `TradingLogicTests.test_first_tp_custom_multiplier_is_locked_when_target_created`
+- `TradingLogicTests.test_legacy_global_quantity_cap_no_longer_blocks_entry`
+- `TradingLogicTests.test_option_multiplier_config_validation`
+- `TradingLogicTests.test_first_tp_option_closes_at_original_premium`
+- `TradingLogicTests.test_clash_direction_and_inclusive_boundaries`
+- `TradingLogicTests.test_clash_default_500_blocks_250_and_does_not_bypass_premium`
+- `TradingLogicTests.test_clash_config_api_validates_before_any_write`
+- `TradingLogicTests.test_selection_skips_nearest_failing_call`
+- `TradingLogicTests.test_selection_lowest_tv_even_when_nearer_also_passes`
+- `TradingLogicTests.test_selection_puts_and_irregular_strike_spacing`
+- `TradingLogicTests.test_selection_auto_compares_calls_and_puts`
+- `TradingLogicTests.test_selection_limits_are_inclusive_and_no_later_expiry_fallback`
+- `TradingLogicTests.test_selection_expiry_boundary_is_strictly_less_than_24h`
+- `TradingLogicTests.test_second_entry_requires_durable_first_reference`
+- `TradingLogicTests.test_tick_uses_one_options_snapshot_for_preview_and_entry`
+- `TradingLogicTests.test_hedge_independent_close_after_expiry_boundary`
+- `TradingLogicTests.test_hedge_missing_quote_does_not_partially_close`
+- `TradingLogicTests.test_hedge_snapshot_uses_held_contract_and_qty`
+- `TradingLogicTests.test_stale_cache_and_empty_rate_limit_are_rejected`
+- `TradingLogicTests.test_dashboard_serializes_option_only_phase_and_missing_quote`

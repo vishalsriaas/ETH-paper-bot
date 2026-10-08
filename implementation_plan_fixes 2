@@ -1,0 +1,61 @@
+# Implementation Plan - Dynamic Hedge Open Positions PnL, Avg. Cost & Current Price
+
+Calculate and display the running PnL, average cost, and current price for active Hedge Open Positions on the dashboard UI. The Straddle engine and layouts will remain completely unchanged.
+
+## User Review Required
+
+> [!IMPORTANT]
+> The table header and rendering columns in the **Hedge Open Positions** view will be updated to display "Avg. Cost" (replaces static entry price) and a new "Current Price" column, alongside the real-time "Running PnL".
+
+---
+
+## Proposed Changes
+
+### Backend Telemetry (API Routes)
+
+#### [MODIFY] [dashboard_routes.py](file:///d:/desktop/Testing/Hedgesnstraddle/HnS_application_11aug/app/api/dashboard_routes.py)
+- Modify `/api/v1/dashboard/snapshot` route to:
+  - Fetch live Options mark prices list and convert to a lookup dictionary.
+  - Iterate through active open positions queried from the `HedgeOpenPosition` table.
+  - Calculate `current_price` dynamically:
+    - For **Futures**: Use the live futures mark price.
+    - For **Options**: Look up the symbol's live mark price from Binance. If not found (expired), compute its intrinsic valuation:
+      - **PUT**: `max(0.0, strike_val - futures_mark)`
+      - **CALL**: `max(0.0, futures_mark - strike_val)`
+  - Calculate the position's `unrealized_pnl` running profit/loss:
+    - `unrealized_pnl = (current_price - entry_price) * qty` (if BUY/LONG side)
+    - `unrealized_pnl = (entry_price - current_price) * qty` (if SELL/SHORT side)
+  - Return the updated list of positions including both `current_price` and `unrealized_pnl` values.
+
+---
+
+### Frontend Dashboard UI
+
+#### [MODIFY] [index.html](file:///d:/desktop/Testing/Hedgesnstraddle/HnS_application_11aug/app/static/index.html)
+- Update the table headers inside the `view-hedge-positions` panel (`#hedge-positions-view-body` container) to include a new **Current Price** header and rename `Entry Price` to `Avg. Cost`, and `Unrealized PnL` to `Running PnL`.
+- The new headers will be:
+  - `Position ID`
+  - `Symbol`
+  - `Side`
+  - `Avg. Cost`
+  - `Current Price`
+  - `Qty`
+  - `Leverage`
+  - `Running PnL`
+
+#### [MODIFY] [app.js](file:///d:/desktop/Testing/Hedgesnstraddle/HnS_application_11aug/app/static/js/app.js)
+- Update the positions rendering block (`Render Hedge Open Positions Table` around line 593):
+  - Bind the dynamic `current_price` value to the new column.
+  - Bind the dynamic `unrealized_pnl` value to the running PnL column with appropriate color highlighting (`var(--accent-emerald)` for profit, `var(--accent-rose)` for loss).
+
+---
+
+## Verification Plan
+
+### Manual Verification
+1. Run the platform server: `$env:PORT="8080"; .venv\Scripts\python.exe main.py`.
+2. Open the dashboard in browser.
+3. Start a Hedge session.
+4. Navigate to **Hedge Open Position & Trade Order** panel.
+5. Verify that the open position table dynamically updates the **Current Price** and **Running PnL** on every UI tick.
+6. Verify that **Straddle** panel is completely unaffected and functions as normal.
