@@ -332,8 +332,11 @@ class StraddleEngine:
                 if not self.active_session_id:
                     oco_limit_multiplier = float(cfg.get("OCO_LIMIT_MULTIPLIER", "1.0"))
                     self.combined_premium = call_mark + put_mark
-                    self.short_limit_price = strike + self.combined_premium * oco_limit_multiplier
-                    self.long_limit_price = strike - self.combined_premium * oco_limit_multiplier
+                    # Shift both limits by the signed entry basis, outside the multiplier.
+                    # Active sessions restore their stored order prices instead of repricing.
+                    entry_basis = futures_mark - spot
+                    self.short_limit_price = strike + self.combined_premium * oco_limit_multiplier + entry_basis
+                    self.long_limit_price = strike - self.combined_premium * oco_limit_multiplier + entry_basis
 
                 now_time_str = datetime.now(ist).strftime("%H:%M")
                 now_rel = get_session_relative_minutes(now_time_str)
@@ -393,6 +396,7 @@ class StraddleEngine:
                             expiry_dt=expiry,
                             status="Open",
                             eth_entry_spot=spot,
+                            eth_entry_mark=futures_mark,
                             call_strike=strike,
                             call_ask=call_mark,   # storing mark price as entry price
                             put_strike=strike,

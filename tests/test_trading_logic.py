@@ -149,6 +149,55 @@ class TradingLogicTests(unittest.TestCase):
         self.assertEqual((order.price, order.status), (60200, 'FILLED'))
         self.assertEqual(bot.state, 'IN_TRADE')
 
+    def basis_entry(self, futures_mark, expected_strike, expected_sell, expected_buy, multiplier=1):
+        self.price = futures_mark
+        self.quotes = [dict(symbol=f'ETH-260908-{strike}-{side}', markPrice=str(premium))
+                       for strike in (2390, 2400, 2410)
+                       for side, premium in [('C', 4), ('P', 5)]]
+        self.config(StraddleConfig, 'OCO_LIMIT_MULTIPLIER', multiplier)
+        with patch.object(se, 'get_eth_spot_price', AsyncMock(return_value=2400)):
+            bot = self.enter_straddle()
+        sess = self.db.query(StraddleSession).one()
+        self.assertEqual((sess.call_strike, sess.put_strike), (expected_strike, expected_strike))
+        self.assertEqual((sess.eth_entry_spot, sess.eth_entry_mark), (2400, futures_mark))
+        self.assertEqual(sess.net_straddle_ask, 9)
+        orders = {o.leg_label: o for o in self.db.query(StraddleTradeOrder).all()}
+        self.assertEqual(orders['SHORT_LIMIT'].price, expected_sell)
+        self.assertEqual(orders['LONG_LIMIT'].price, expected_buy)
+        self.assertEqual((bot.short_limit_price, bot.long_limit_price), (expected_sell, expected_buy))
+        self.assertEqual(orders['CALL'].price, 4)
+        self.assertEqual(orders['PUT'].price, 5)
+        return bot
+
+    def test_straddle_contango_shifts_both_limits_up(self):
+        self.basis_entry(2402, 2400, 2411, 2393)
+
+    def test_straddle_backwardation_shifts_both_limits_down(self):
+        self.basis_entry(2398, 2400, 2407, 2389)
+
+    def test_straddle_zero_basis_keeps_original_limits(self):
+        self.basis_entry(2400, 2400, 2409, 2391)
+
+    def test_straddle_basis_is_not_scaled_by_oco_multiplier(self):
+        self.basis_entry(2402, 2400, 2420, 2384, multiplier=2)
+
+    def test_straddle_basis_preserves_futures_based_strike_selection(self):
+        self.basis_entry(2406, 2410, 2425, 2407)
+
+    def test_straddle_entry_basis_limits_stay_locked_after_restart(self):
+        bot = self.basis_entry(2402, 2400, 2411, 2393)
+        self.price = 2403
+        self.quotes = [dict(symbol=f'ETH-260908-2400-{side}', markPrice='7') for side in ('C', 'P')]
+        self.config(StraddleConfig, 'OCO_LIMIT_MULTIPLIER', 3)
+        with patch.object(se, 'get_eth_spot_price', AsyncMock(return_value=2390)):
+            for current in (bot, se.StraddleEngine()):
+                self.run_straddle(current)
+                self.assertEqual((current.short_limit_price, current.long_limit_price), (2411, 2393))
+        orders = self.db.query(StraddleTradeOrder).filter_by(status='PENDING').all()
+        self.assertEqual(sorted(o.price for o in orders), [2393, 2411])
+        sess = self.db.query(StraddleSession).one()
+        self.assertEqual((sess.eth_entry_spot, sess.eth_entry_mark), (2400, 2402))
+
     def test_reported_1740_crossing_has_exchange_fill_time_not_poll_time(self):
         Clock.day_now, Clock.hour_now, Clock.minute_now = 17, 17, 5
         for k, v in dict(WINDOW_START='17:05', WINDOW_END='18:00',
